@@ -8,21 +8,26 @@
 import UIKit
 
 class RMCharactersVC: UIViewController {
+    
+    private let rmCharacterListView = RMCharacterListView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
         title = "Characters"
         
-        RMService.shared.execute(RMRequest.listCharactersRequests, expecting: RMAllChractersResponse.self) { result in
-            switch result {
-            case .success(let allCharactersResponse):
-                print(allCharactersResponse.results.count)
-                print(allCharactersResponse.results)
-            case .failure(let error):
-                print(error)
-            }
-        }
+        configure()
+    }
+    
+    func configure() {
+        view.addSubview(rmCharacterListView)
+        rmCharacterListView.translatesAutoresizingMaskIntoConstraints = false
+        
+          NSLayoutConstraint.activate([
+            rmCharacterListView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            rmCharacterListView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            rmCharacterListView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            rmCharacterListView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor)
+          ])
     }
     
 
