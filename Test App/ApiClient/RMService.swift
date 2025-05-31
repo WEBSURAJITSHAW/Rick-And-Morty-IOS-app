@@ -38,7 +38,10 @@ final class RMService {
             }
             
             do {
-                let decoded = try JSONDecoder().decode(responseType, from: data)
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                
+                let decoded = try decoder.decode(responseType.self, from: data)
                 completion(.success(decoded))
             } catch {
                 completion(.failure(error))

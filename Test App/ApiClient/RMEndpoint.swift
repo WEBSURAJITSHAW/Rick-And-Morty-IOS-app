@@ -8,7 +8,7 @@
 import Foundation
 
 public enum RMEndpoint: String {
-    case characters = "characters"
-    case episodes = "episodes"
-    case locations = "locations"
+    case characters = "character"
+    case episodes = "episode"
+    case locations = "location"
 }

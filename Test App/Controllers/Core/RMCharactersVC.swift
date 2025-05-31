@@ -14,10 +14,11 @@ class RMCharactersVC: UIViewController {
 
         title = "Characters"
         
-        RMService.shared.execute(RMRequest., expecting: Character.self) { result in
+        RMService.shared.execute(RMRequest.listCharactersRequests, expecting: RMAllChractersResponse.self) { result in
             switch result {
-            case .success(let characters):
-                print(characters)
+            case .success(let allCharactersResponse):
+                print(allCharactersResponse.results.count)
+                print(allCharactersResponse.results)
             case .failure(let error):
                 print(error)
             }
