@@ -8,12 +8,26 @@
 import UIKit
 
 final class RMCharacterListViewModel: NSObject {
+    
+    private var allCharacters: [RMCharacter] = [] {
+        didSet {
+            for character in allCharacters {
+                let viewmodel = RMCharacterViewModel(imageUrl: character.image, nameText: character.name)
+                allCharacterViewModel.append(viewmodel)
+            }
+        }
+    }
+    
+    private var allCharacterViewModel: [RMCharacterViewModel] = []
+    
     func fetchListOfCharacters () {
-        RMService.shared.execute(RMRequest.listCharactersRequests, expecting: RMAllChractersResponse.self) { result in
+        RMService.shared.execute(RMRequest.listCharactersRequests, expecting: RMAllChractersResponse.self) { [weak self] result in
+            guard let self = self else { return }
+            
             switch result {
             case .success(let allCharactersResponse):
-                print(allCharactersResponse.results.count)
-                print(allCharactersResponse.results)
+                let allCharactersResult = allCharactersResponse.results
+                self.allCharacters = allCharactersResult
             case .failure(let error):
                 print(error)
             }
@@ -21,15 +35,28 @@ final class RMCharacterListViewModel: NSObject {
     }
 }
 
+
+
+
+
+
+
+
+
+
 extension RMCharacterListViewModel: UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "cell", for: indexPath)
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: RMCharacterCollectionViewCell.reuseID, for: indexPath) as? RMCharacterCollectionViewCell else {
+            fatalError("Unsupported Cell")
+        }
         cell.backgroundColor = .secondarySystemBackground
+        let viewmodel = allCharacterViewModel[indexPath.row]
+        cell.configure(with: viewmodel)
         return cell
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return 20
+        return allCharacterViewModel.count
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {

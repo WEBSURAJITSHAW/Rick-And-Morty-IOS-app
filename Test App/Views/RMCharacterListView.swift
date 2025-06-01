@@ -24,7 +24,7 @@ class RMCharacterListView: UIView {
         let cvLayout = UICollectionViewFlowLayout()
         cvLayout.sectionInset = UIEdgeInsets(top: 5, left: 15, bottom: 15, right: 5)
         let cv = UICollectionView(frame: .zero, collectionViewLayout: cvLayout)
-        cv.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
+        cv.register(RMCharacterCollectionViewCell.self, forCellWithReuseIdentifier: RMCharacterCollectionViewCell.reuseID)
         cv.isHidden = true
         cv.alpha = 0
         cv.translatesAutoresizingMaskIntoConstraints = false
