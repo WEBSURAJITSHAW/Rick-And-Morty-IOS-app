@@ -50,6 +50,12 @@ class RMCharacterListView: UIView {
         charactersCollectionView.dataSource = rmCharacterListVM
         charactersCollectionView.delegate = rmCharacterListVM
         
+        charactersCollectionView.register(
+            RMFooterLoadingCollectionReusableView.self,
+            forSupplementaryViewOfKind: UICollectionView.elementKindSectionFooter,
+            withReuseIdentifier: RMFooterLoadingCollectionReusableView.identifier
+        )
+        
         rmCharacterListVM.onCharactersFetched = { [weak self] in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -59,6 +65,20 @@ class RMCharacterListView: UIView {
                 UIView.animate(withDuration: 0.4) {
                     self.charactersCollectionView.alpha = 1
                 }
+            }
+        }
+        
+        rmCharacterListVM.onLoadingMore = { [weak self] isLoading in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if isLoading {
+                    // Show footer loading indicator
+                    let lastSection = self.charactersCollectionView.numberOfSections - 1
+                    let lastItem = self.charactersCollectionView.numberOfItems(inSection: lastSection) - 1
+                    let indexPath = IndexPath(item: lastItem, section: lastSection)
+                    self.charactersCollectionView.scrollToItem(at: indexPath, at: .bottom, animated: true)
+                }
+                // Footer visibility is handled by referenceSizeForFooterInSection
             }
         }
     }

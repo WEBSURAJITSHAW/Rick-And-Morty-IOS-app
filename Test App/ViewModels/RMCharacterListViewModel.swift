@@ -16,33 +16,81 @@ final class RMCharacterListViewModel: NSObject {
     
     var onCharactersFetched: (() -> Void)?
     
-    weak var delegate: RMCharacterListViewModelDelegate?
+    var onLoadingMore: ((Bool) -> Void)?
+    var isLoadingMoreCharacters = false
+    var apiInfo: RMInfo? = nil
     
+    
+    weak var delegate: RMCharacterListViewModelDelegate?
     private var allCharacters: [RMCharacter] = [] {
         didSet {
-            for character in allCharacters {
-                let viewmodel = RMCharacterViewModel(imageUrl: character.image, nameText: character.name)
-                allCharacterViewModel.append(viewmodel)
+            // Clear the view models when we get new base data
+            if !isLoadingMoreCharacters {
+                allCharacterViewModel.removeAll()
             }
+            
+            // Create view models for all current characters
+            allCharacterViewModel = allCharacters.map {
+                RMCharacterViewModel(imageUrl: $0.image, nameText: $0.name)
+            }
+            
             onCharactersFetched?()
         }
     }
     
     private var allCharacterViewModel: [RMCharacterViewModel] = []
     
-    func fetchListOfCharacters () {
-        RMService.shared.execute(RMRequest.listCharactersRequests, expecting: RMAllChractersResponse.self) { [weak self] result in
-            guard let self = self else { return }
+    func fetchListOfCharacters(isLoadingMore: Bool = false) {
+        if isLoadingMore {
+            guard !isLoadingMoreCharacters, let nextUrlString = apiInfo?.next else { return }
+            isLoadingMoreCharacters = true
+            onLoadingMore?(true)
             
-            switch result {
-            case .success(let allCharactersResponse):
-                let allCharactersResult = allCharactersResponse.results
-                self.allCharacters = allCharactersResult
-            case .failure(let error):
-                print(error)
+            guard let url = URL(string: nextUrlString) else {
+                isLoadingMoreCharacters = false
+                onLoadingMore?(false)
+                return
             }
+            
+            let request = RMRequest(url: url)
+            fetchCharacters(with: request, isLoadingMore: true)
+        } else {
+            let request = RMRequest.listCharactersRequests
+            fetchCharacters(with: request, isLoadingMore: false)
         }
     }
+    
+    private func fetchCharacters(with request: RMRequest, isLoadingMore: Bool) {
+            RMService.shared.execute(request, expecting: RMAllChractersResponse.self) { [weak self] result in
+                guard let self = self else { return }
+                
+                DispatchQueue.main.async {
+                    if isLoadingMore {
+                        self.isLoadingMoreCharacters = false
+                        self.onLoadingMore?(false)
+                    }
+                    
+                    switch result {
+                    case .success(let response):
+                        let newCharacters = response.results
+                        self.apiInfo = response.info
+                        
+                        if isLoadingMore {
+                            self.allCharacters.append(contentsOf: newCharacters)
+                        } else {
+                            self.allCharacters = newCharacters
+                        }
+                        
+                    case .failure(let error):
+                        print("Failed to fetch characters: \(error)")
+                        if isLoadingMore {
+                            self.isLoadingMoreCharacters = false
+                            self.onLoadingMore?(false)
+                        }
+                    }
+                }
+            }
+        }
     
     // Expose data for the view
     func viewModel(at index: Int) -> RMCharacterViewModel {
@@ -86,10 +134,51 @@ extension RMCharacterListViewModel: UICollectionViewDataSource, UICollectionView
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        collectionView.deselectItem(at: indexPath, animated: true)
-        print("\(allCharacters[indexPath.row].name) is tapped!")
-        delegate?.didSelectCharacter(allCharacters[indexPath.row])
-    }
+          collectionView.deselectItem(at: indexPath, animated: true)
+          guard indexPath.row < allCharacters.count else {
+              print("Index out of range for character selection")
+              return
+          }
+          let character = allCharacters[indexPath.row]
+          print("\(character.name) is tapped!")
+          delegate?.didSelectCharacter(character)
+      }
+    
+    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
+            guard kind == UICollectionView.elementKindSectionFooter,
+                  let footer = collectionView.dequeueReusableSupplementaryView(
+                    ofKind: kind,
+                    withReuseIdentifier: RMFooterLoadingCollectionReusableView.identifier,
+                    for: indexPath
+                  ) as? RMFooterLoadingCollectionReusableView else {
+                fatalError("Unsupported")
+            }
+            footer.startAnimating()
+            return footer
+        }
+        
+        func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForFooterInSection section: Int) -> CGSize {
+            guard let apiInfo = apiInfo, apiInfo.next != nil, !allCharacterViewModel.isEmpty else {
+                return .zero
+            }
+            return CGSize(width: collectionView.frame.width, height: 100)
+        }
+        
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            guard let apiInfo = apiInfo, apiInfo.next != nil,
+                  !isLoadingMoreCharacters,
+                  !allCharacterViewModel.isEmpty else {
+                return
+            }
+            
+            let offsetY = scrollView.contentOffset.y
+            let contentHeight = scrollView.contentSize.height
+            let scrollViewHeight = scrollView.frame.size.height
+            
+            if offsetY > contentHeight - scrollViewHeight - 120 {
+                fetchListOfCharacters(isLoadingMore: true)
+            }
+        }
     
     
 }

@@ -76,7 +76,7 @@ class RMEpisodeCollectionViewCell: UICollectionViewCell {
         stackView.addArrangedSubview(episodeTitleLabel)
         
         // Add visual feedback when cell is tapped
-        let tapFeedback = UIImpactFeedbackGenerator(style: .light)
+        let tapFeedback = UIImpactFeedbackGenerator(style: .soft)
         tapFeedback.prepare()
     }
     

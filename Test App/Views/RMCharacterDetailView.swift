@@ -112,7 +112,7 @@ class RMCharacterDetailView: UIView {
     // MARK: - Configure
     
     func configure(with character: RMCharacterDetailsVM) {
-        dump(character)
+//        dump(character)
         
         // Header Section
         nameLabel.text = character.viewmodel.name
