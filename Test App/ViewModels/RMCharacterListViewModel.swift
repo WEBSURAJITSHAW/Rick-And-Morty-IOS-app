@@ -20,6 +20,10 @@ final class RMCharacterListViewModel: NSObject {
     var isLoadingMoreCharacters = false
     var apiInfo: RMInfo? = nil
     
+    private var filteredCharacters: [RMCharacter] = []
+    private var filteredCharacterViewModels: [RMCharacterViewModel] = []
+    private var isSearchActive = false
+    
     
     weak var delegate: RMCharacterListViewModelDelegate?
     private var allCharacters: [RMCharacter] = [] {
@@ -61,44 +65,94 @@ final class RMCharacterListViewModel: NSObject {
     }
     
     private func fetchCharacters(with request: RMRequest, isLoadingMore: Bool) {
-            RMService.shared.execute(request, expecting: RMAllChractersResponse.self) { [weak self] result in
-                guard let self = self else { return }
+        RMService.shared.execute(request, expecting: RMAllChractersResponse.self) { [weak self] result in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                if isLoadingMore {
+                    self.isLoadingMoreCharacters = false
+                    self.onLoadingMore?(false)
+                }
                 
-                DispatchQueue.main.async {
+                switch result {
+                case .success(let response):
+                    let newCharacters = response.results
+                    self.apiInfo = response.info
+                    
+                    if isLoadingMore {
+                        self.allCharacters.append(contentsOf: newCharacters)
+                    } else {
+                        self.allCharacters = newCharacters
+                    }
+                    
+                case .failure(let error):
+                    print("Failed to fetch characters: \(error)")
                     if isLoadingMore {
                         self.isLoadingMoreCharacters = false
                         self.onLoadingMore?(false)
                     }
-                    
-                    switch result {
-                    case .success(let response):
-                        let newCharacters = response.results
-                        self.apiInfo = response.info
-                        
-                        if isLoadingMore {
-                            self.allCharacters.append(contentsOf: newCharacters)
-                        } else {
-                            self.allCharacters = newCharacters
-                        }
-                        
-                    case .failure(let error):
-                        print("Failed to fetch characters: \(error)")
-                        if isLoadingMore {
-                            self.isLoadingMoreCharacters = false
-                            self.onLoadingMore?(false)
-                        }
-                    }
                 }
             }
         }
+    }
     
-    // Expose data for the view
+    // MARK: - Search Methods
+    
+    /// Filters characters based on search text
+    func filterCharacters(with searchText: String) {
+        print("Searching for: \(searchText)")
+        isSearchActive = true
+        filteredCharacters = allCharacters.filter {
+            $0.name.lowercased().contains(searchText.lowercased())
+        }
+        
+        filteredCharacterViewModels = filteredCharacters.map {
+            RMCharacterViewModel(imageUrl: $0.image, nameText: $0.name)
+        }
+        
+        print("Found \(filteredCharacters.count) matches")
+        DispatchQueue.main.async { [weak self] in
+            self?.onCharactersFetched?()
+        }
+    }
+
+    func resetSearch() {
+        isSearchActive = false
+        filteredCharacters.removeAll()
+        filteredCharacterViewModels.removeAll()
+        DispatchQueue.main.async { [weak self] in
+            self?.onCharactersFetched?()
+        }
+    }
+    
+    // MARK: - Data Access Methods
+    
     func viewModel(at index: Int) -> RMCharacterViewModel {
-        return allCharacterViewModel[index]
+        if isSearchActive {
+            guard index < filteredCharacterViewModels.count else {
+                fatalError("Index out of range for filtered characters")
+            }
+            return filteredCharacterViewModels[index]
+        } else {
+            guard index < allCharacterViewModel.count else {
+                fatalError("Index out of range for all characters")
+            }
+            return allCharacterViewModel[index]
+        }
     }
     
     func numberOfItems() -> Int {
-        return allCharacterViewModel.count
+        return isSearchActive ? filteredCharacterViewModels.count : allCharacterViewModel.count
+    }
+    
+    func character(at index: Int) -> RMCharacter? {
+        if isSearchActive {
+            guard index < filteredCharacters.count else { return nil }
+            return filteredCharacters[index]
+        } else {
+            guard index < allCharacters.count else { return nil }
+            return allCharacters[index]
+        }
     }
 }
 
@@ -134,51 +188,51 @@ extension RMCharacterListViewModel: UICollectionViewDataSource, UICollectionView
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-          collectionView.deselectItem(at: indexPath, animated: true)
-          guard indexPath.row < allCharacters.count else {
-              print("Index out of range for character selection")
-              return
-          }
-          let character = allCharacters[indexPath.row]
-          print("\(character.name) is tapped!")
-          delegate?.didSelectCharacter(character)
-      }
+        collectionView.deselectItem(at: indexPath, animated: true)
+        guard indexPath.row < allCharacters.count else {
+            print("Index out of range for character selection")
+            return
+        }
+        let character = allCharacters[indexPath.row]
+        print("\(character.name) is tapped!")
+        delegate?.didSelectCharacter(character)
+    }
     
     func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
-            guard kind == UICollectionView.elementKindSectionFooter,
-                  let footer = collectionView.dequeueReusableSupplementaryView(
-                    ofKind: kind,
-                    withReuseIdentifier: RMFooterLoadingCollectionReusableView.identifier,
-                    for: indexPath
-                  ) as? RMFooterLoadingCollectionReusableView else {
-                fatalError("Unsupported")
-            }
-            footer.startAnimating()
-            return footer
+        guard kind == UICollectionView.elementKindSectionFooter,
+              let footer = collectionView.dequeueReusableSupplementaryView(
+                ofKind: kind,
+                withReuseIdentifier: RMFooterLoadingCollectionReusableView.identifier,
+                for: indexPath
+              ) as? RMFooterLoadingCollectionReusableView else {
+            fatalError("Unsupported")
+        }
+        footer.startAnimating()
+        return footer
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForFooterInSection section: Int) -> CGSize {
+        guard let apiInfo = apiInfo, apiInfo.next != nil, !allCharacterViewModel.isEmpty else {
+            return .zero
+        }
+        return CGSize(width: collectionView.frame.width, height: 100)
+    }
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard let apiInfo = apiInfo, apiInfo.next != nil,
+              !isLoadingMoreCharacters,
+              !allCharacterViewModel.isEmpty else {
+            return
         }
         
-        func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForFooterInSection section: Int) -> CGSize {
-            guard let apiInfo = apiInfo, apiInfo.next != nil, !allCharacterViewModel.isEmpty else {
-                return .zero
-            }
-            return CGSize(width: collectionView.frame.width, height: 100)
-        }
+        let offsetY = scrollView.contentOffset.y
+        let contentHeight = scrollView.contentSize.height
+        let scrollViewHeight = scrollView.frame.size.height
         
-        func scrollViewDidScroll(_ scrollView: UIScrollView) {
-            guard let apiInfo = apiInfo, apiInfo.next != nil,
-                  !isLoadingMoreCharacters,
-                  !allCharacterViewModel.isEmpty else {
-                return
-            }
-            
-            let offsetY = scrollView.contentOffset.y
-            let contentHeight = scrollView.contentSize.height
-            let scrollViewHeight = scrollView.frame.size.height
-            
-            if offsetY > contentHeight - scrollViewHeight - 120 {
-                fetchListOfCharacters(isLoadingMore: true)
-            }
+        if offsetY > contentHeight - scrollViewHeight - 120 {
+            fetchListOfCharacters(isLoadingMore: true)
         }
+    }
     
     
 }

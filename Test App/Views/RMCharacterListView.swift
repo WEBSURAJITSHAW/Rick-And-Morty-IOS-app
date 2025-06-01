@@ -19,7 +19,7 @@ class RMCharacterListView: UIView {
         return spinner
     }()
     
-    private let charactersCollectionView: UICollectionView = {
+     let charactersCollectionView: UICollectionView = {
         
         let cvLayout = UICollectionViewFlowLayout()
         cvLayout.sectionInset = UIEdgeInsets(top: 5, left: 15, bottom: 15, right: 5)
