@@ -7,7 +7,16 @@
 
 import UIKit
 
+
+protocol RMCharacterListViewModelDelegate: AnyObject {
+    func didSelectCharacter(_ character: RMCharacter)
+}
+
 final class RMCharacterListViewModel: NSObject {
+    
+    var onCharactersFetched: (() -> Void)?
+    
+    weak var delegate: RMCharacterListViewModelDelegate?
     
     private var allCharacters: [RMCharacter] = [] {
         didSet {
@@ -15,6 +24,7 @@ final class RMCharacterListViewModel: NSObject {
                 let viewmodel = RMCharacterViewModel(imageUrl: character.image, nameText: character.name)
                 allCharacterViewModel.append(viewmodel)
             }
+            onCharactersFetched?()
         }
     }
     
@@ -32,6 +42,15 @@ final class RMCharacterListViewModel: NSObject {
                 print(error)
             }
         }
+    }
+    
+    // Expose data for the view
+    func viewModel(at index: Int) -> RMCharacterViewModel {
+        return allCharacterViewModel[index]
+    }
+    
+    func numberOfItems() -> Int {
+        return allCharacterViewModel.count
     }
 }
 
@@ -65,5 +84,12 @@ extension RMCharacterListViewModel: UICollectionViewDataSource, UICollectionView
         
         return CGSize(width: width, height: width * 1.5)
     }
-
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        collectionView.deselectItem(at: indexPath, animated: true)
+        print("\(allCharacters[indexPath.row].name) is tapped!")
+        delegate?.didSelectCharacter(allCharacters[indexPath.row])
+    }
+    
+    
 }

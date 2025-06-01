@@ -16,6 +16,7 @@ class RMCharactersVC: UIViewController {
         title = "Characters"
         
         configure()
+        rmCharacterListView.rmCharacterListVM.delegate = self
     }
     
     func configure() {
@@ -31,4 +32,14 @@ class RMCharactersVC: UIViewController {
     }
     
 
+}
+
+
+extension RMCharactersVC: RMCharacterListViewModelDelegate {
+    func didSelectCharacter(_ character: RMCharacter) {
+        let characterDetailVC = RMCharacterDetailViewController(viewmodel: RMCharacterDetailsVM(viewmodel: character))
+        DispatchQueue.main.async{
+            self.navigationController?.pushViewController(characterDetailVC, animated: true)
+        }
+    }
 }

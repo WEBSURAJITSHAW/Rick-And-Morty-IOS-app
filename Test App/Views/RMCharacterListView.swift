@@ -9,7 +9,7 @@ import UIKit
 
 class RMCharacterListView: UIView {
     
-    private let rmCharacterListVM = RMCharacterListViewModel()
+     let rmCharacterListVM = RMCharacterListViewModel()
     
     private let indicator: UIActivityIndicatorView = {
         let spinner = UIActivityIndicatorView(style: .large)
@@ -28,6 +28,7 @@ class RMCharacterListView: UIView {
         cv.isHidden = true
         cv.alpha = 0
         cv.translatesAutoresizingMaskIntoConstraints = false
+        cv.backgroundColor = .clear
         return cv
     }()
     
@@ -45,19 +46,23 @@ class RMCharacterListView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func setUpCollectionView() {
-        
+    private func setUpCollectionView() {
         charactersCollectionView.dataSource = rmCharacterListVM
         charactersCollectionView.delegate = rmCharacterListVM
         
-        DispatchQueue.main.asyncAfter(deadline: .now()+2, execute: {
-            self.indicator.stopAnimating()
-            self.charactersCollectionView.isHidden = false
-            UIView.animate(withDuration: 0.4) {
-                self.charactersCollectionView.alpha = 1
+        rmCharacterListVM.onCharactersFetched = { [weak self] in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.indicator.stopAnimating()
+                self.charactersCollectionView.reloadData()
+                self.charactersCollectionView.isHidden = false
+                UIView.animate(withDuration: 0.4) {
+                    self.charactersCollectionView.alpha = 1
+                }
             }
-        })
+        }
     }
+
     
     func configure() {
         addSubview(indicator)

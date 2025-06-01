@@ -32,9 +32,16 @@ class RMCharacterCollectionViewCell: UICollectionViewCell {
         contentView.addSubview(characterImageView)
         characterImageView.addSubview(characterNameLabel) // overlay on image
         
+        
         contentView.layer.cornerRadius = 15
         contentView.layer.masksToBounds = true
-        contentView.backgroundColor = .secondarySystemBackground
+        
+        characterImageView.layer.cornerRadius = 15
+        characterImageView.layer.masksToBounds = true
+
+        clipsToBounds = true
+        
+        contentView.backgroundColor = .clear
         
         addConstraints()
     }
